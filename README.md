@@ -16,3 +16,4 @@ for why that matters).
 
 All six were fetched from Google Drive and verified byte-exact (`wc -c` + `ast.parse`)
 on 2026-08-27/28 before being committed here.
+# congressional-briefing-scripts
