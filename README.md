@@ -16,4 +16,15 @@ for why that matters).
 
 All six were fetched from Google Drive and verified byte-exact (`wc -c` + `ast.parse`)
 on 2026-08-27/28 before being committed here.
-# congressional-briefing-scripts
+
+**Note (2026-08-31):** these six were committed here but the daily pipeline's own
+policy/skill still described fetching base64 tar.gz bundles from Drive — the switch to
+actually curling from this repo was wired up in policy the same day this note was added
+(see `known_traps.mcp_vs_rest` and `windows` in the latest `policy-*.json` in the Drive
+folder). If a run is still doing the Drive/base64 dance, that's a regression, not the
+intended behaviour.
+
+## biweekly/
+
+Scripts for the biweekly portfolio review — same rationale, smaller and newer. See
+`biweekly/README.md` for what's there and why.
