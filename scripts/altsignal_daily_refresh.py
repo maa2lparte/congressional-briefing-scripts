@@ -26,6 +26,12 @@ VERIFIED WORKING ENDPOINTS (2026-08-31), curl + Bearer quiver_api_key:
   gov_contract_momentum beta/live/govcontractsall            (no ticker param -- bulk, n~20000 rows)
   news_momentum         beta/live/quivernews?ticker=TICKER   (PER-TICKER ONLY)
 
+FIX (2026-09-03): the first cut of this script fetched via urllib.request, which Cloudflare
+blocks on this API (HTTP 403) -- the exact same trap config.json's own notes warn about for
+the congressional/insider endpoints, and the reason all five OTHER pipeline scripts already
+shell out to curl instead. This script now does the same (subprocess -> curl -s, same as
+stage1a_v2.py's own bulk fetch does at the shell level) rather than using urllib.
+
 USAGE
     python3 altsignal_daily_refresh.py --api-key-file config.json \
         --out "$CB_WORKDIR/altsignal.json" --gov-window-days 90 \
@@ -38,12 +44,13 @@ USAGE
     coverage), news_momentum is left at 0 for every ticker (missing_data_convention: 0 is
     correct for "not computed", not "measured zero").
 
-DEPENDENCIES: standard library only (urllib).
+DEPENDENCIES: standard library only (subprocess -> the system `curl` binary; no urllib,
+which Cloudflare blocks on this API -- see the 2026-09-03 fix note above).
 """
 import argparse
 import json
+import subprocess
 import sys
-import urllib.request
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -53,9 +60,21 @@ NEWS_URL_TMPL = "https://api.quiverquant.com/beta/live/quivernews?ticker={ticker
 
 
 def _get(url, api_key, timeout=60):
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    """Fetch a URL via curl (not urllib -- Cloudflare 403s the urllib user-agent on this
+    API, same trap documented in config.json for the congressional/insider endpoints)."""
+    proc = subprocess.run(
+        ["curl", "-s", "--max-time", str(timeout),
+         "-H", f"Authorization: Bearer {api_key}", url],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"curl failed (exit {proc.returncode}) for {url}: {proc.stderr.strip()}")
+    if not proc.stdout.strip():
+        raise RuntimeError(f"curl returned empty body for {url}")
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"non-JSON response from {url}: {proc.stdout[:300]!r}") from e
 
 
 def fetch_short_squeeze(api_key):
