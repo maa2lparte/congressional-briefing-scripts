@@ -59,7 +59,10 @@ def history(ticker, days=750):
         return _cache[ticker]
     try:
         df = yf.Ticker(ticker).history(period=f"{days}d", auto_adjust=True)
-        df = df if not df.empty else None
+        # Yahoo sometimes returns the latest bar with Close=NaN (seen 2026-09-26
+        # for the 09-25 bar). Left in, it silently NaNs every indicator.
+        df = df.dropna(subset=["Close"]) if df is not None else None
+        df = df if (df is not None and not df.empty) else None
     except Exception as exc:
         print(f"  ! {ticker}: {exc}", file=sys.stderr)
         df = None
