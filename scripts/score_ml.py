@@ -35,6 +35,8 @@ META_PATH = os.path.join(BASE, "ml_model_meta.json")
 
 def score(ticker, clf):
     df = yf.Ticker(ticker).history(period="420d", auto_adjust=True)
+    if df is not None:
+        df = df.dropna(subset=["Close"])  # Yahoo NaN latest bar (policy v17 known_traps)
     if df is None or len(df) < 210:
         return {"ticker": ticker, "error": "insufficient history"}
     f = features_for_df(df)
